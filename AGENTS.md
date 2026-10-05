@@ -17,6 +17,7 @@ Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared 
 
 Run from the repo root.
 
+- Node `^24.15.0 || >=26` is required (`engines` in `package.json`), because jsdom 30 needs it.
 - `npm install` installs the root app and both workspaces.
 - `npm run dev` starts the dev server on http://localhost:3000.
 - `npm run build` builds the app for production.
