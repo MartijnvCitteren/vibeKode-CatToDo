@@ -12,8 +12,13 @@ process.env.E2E_PORT ??= execFileSync(process.execPath, [
   .toString()
   .trim();
 const baseURL = `http://localhost:${process.env.E2E_PORT}`;
-// Same for the server's own throwaway database, so e2e runs never touch data/app.db.
-process.env.E2E_DATABASE_DIR ??= mkdtempSync(join(tmpdir(), "todo-cat-e2e-"));
+// Same for the server's own database: a throwaway file unless E2E_DATABASE_URL is set, never data/app.db.
+if (!process.env.E2E_DATABASE_URL) {
+  const dir = mkdtempSync(join(tmpdir(), "todo-cat-e2e-"));
+  // Teardown deletes only a directory created here, never one passed in.
+  process.env.E2E_DATABASE_TMPDIR = dir;
+  process.env.E2E_DATABASE_URL = `file:${join(dir, "e2e.db")}`;
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -31,9 +36,9 @@ export default defineConfig({
     url: baseURL,
     env: {
       // A separate build dir so this server does not collide with `npm run dev`'s lock on .next/dev.
-      NEXT_DIST_DIR: ".next/e2e",
+      NEXT_DIST_DIR: process.env.E2E_DIST_DIR ?? ".next/e2e",
       // Set before .env is read, so both drizzle-kit and Next.js keep this value.
-      DATABASE_URL: `file:${join(process.env.E2E_DATABASE_DIR, "e2e.db")}`,
+      DATABASE_URL: process.env.E2E_DATABASE_URL,
     },
     reuseExistingServer: false,
     timeout: 120_000,

@@ -19,7 +19,7 @@
 ## Test databases
 
 - Vitest: `lib/db.test.ts` points `DATABASE_URL` at a temp file, then imports `lib/db.ts` and migrates it with Drizzle's runtime migrator from `drizzle/`.
-- Playwright: `playwright.config.ts` creates a temp dir once (`E2E_DATABASE_DIR`), the web server runs `drizzle-kit migrate` before `next dev` against it, and `e2e/global-teardown.ts` deletes it.
+- Playwright: the web server gets `E2E_DATABASE_URL` (by default a file in a temp dir that `e2e/global-teardown.ts` deletes) and runs `drizzle-kit migrate` against it before `next dev`.
 
 ## Gotchas
 

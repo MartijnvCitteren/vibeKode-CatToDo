@@ -23,13 +23,21 @@ Run from the repo root.
 - `cp .env.example .env` creates the local env file (gitignored) with `DATABASE_URL`.
 - `npm run dev` starts the dev server on http://localhost:3000.
 - `npm run build` builds the app for production.
-- `npm run lint` runs `biome check` (lint, format and import order); it must pass before every commit.
+- `npm run qa` runs every check (Biome, typecheck, build, Vitest, Playwright) and prints only what failed; see [testing.md](tech-docs/testing.md).
+- `npm run lint` runs `biome check` (lint, format and import order).
+- `npm run typecheck` runs `tsc` over the app and all workspaces.
 - `npm run format` rewrites files with the Biome formatter.
 - `npm test` runs the Vitest unit and integration tests once.
 - `npm run test:e2e` runs the Playwright end-to-end tests in Chromium (first run `npx playwright install chromium`).
 - `npm run db:generate` writes a migration from changes in `lib/schema.ts`.
 - `npm run db:migrate` applies pending migrations to the database in `DATABASE_URL`.
 - `npm run db:reset` deletes the local database file and migrates a fresh one.
+
+## Definition of done
+
+- Run `npm run qa` before you call a task done, and only call it done when it passes.
+- Fix the code behind a finding instead of suppressing it (no ignore comments, disabled rules, skipped tests or loosened types).
+- CI runs the same script on every push and pull request.
 
 ## Verify, don't recall
 
@@ -57,7 +65,7 @@ Run from the repo root.
 Index:
 
 - [workspaces.md](tech-docs/workspaces.md) — the npm workspace layout and why it exists before its content does.
-- [testing.md](tech-docs/testing.md) — test strategy, commands and gotchas for Vitest and Playwright.
+- [testing.md](tech-docs/testing.md) — test strategy, the QA script, CI, and gotchas for Vitest and Playwright.
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
 
 ## Keeping this map current

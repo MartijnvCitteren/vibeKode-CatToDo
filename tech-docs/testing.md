@@ -10,17 +10,40 @@
 
 ## Commands
 
+- `npm run qa` (`scripts/qa.sh`) runs Biome, typecheck, production build, Vitest and Playwright; it is the done-check for every task and the whole CI job.
 - `npm test` runs Vitest once across the app and both workspaces; `npm run test:watch` keeps it watching.
 - `npm run test:e2e` runs Playwright, which starts its own `next dev` on a free port and stops it afterwards.
 - `npx playwright install chromium` downloads the browser; run it once per machine and after upgrading `@playwright/test`.
 - `npx playwright test --ui` or `--debug` opens Playwright's interactive runner.
+
+## QA script
+
+- Every section runs even after an earlier one fails, so one run reports all problems; the exit code is 1 if any section failed.
+- Each section prints one `PASS`/`FAIL` line; only failing sections print their output, and the full output of every section goes to `.qa/qa.log` (override with `QA_LOG`).
+- Output is plain for agents: `NO_COLOR`, `FORCE_COLOR=0` and `biome --colors=off` strip colors, and findings keep their file and line (`app/page.tsx:4:3`, `lib/db.ts(10,14)`).
+- `npm run typecheck` runs `tsc` over the root project, which also covers `contract/` and `cli/`, and then each workspace's own `typecheck` script once one exists.
+- A type error fails both `typecheck` and `build`, because `next build` type-checks too.
+
+## Isolation of the Playwright server
+
+- The e2e server must never collide with `npm run dev` or with another checkout running at the same time, so its port, build dir and database are separate and overridable.
+- `E2E_PORT` defaults to a free port, `E2E_DIST_DIR` to `.next/e2e`, and `E2E_DATABASE_URL` to a file in a fresh temp dir that the global teardown deletes.
+- A database passed in through `E2E_DATABASE_URL` is migrated but never deleted.
+
+## CI
+
+- `.github/workflows/qa.yml` runs `npm run qa` on every push and pull request with Node 24 and `npm ci`; it does not deploy.
+- Playwright browsers are cached by Playwright version, and `playwright install --with-deps` still runs on a cache hit to install Chromium's system libraries.
+- CI builds `.env` from `.env.example` and fills every empty value with a random dummy, so a new secret belongs in `.env.example` with an empty value and never in GitHub secrets for tests.
+- On failure the job uploads `.qa/` and `test-results/` as the `qa-results` artifact.
+- With `CI` set, Playwright switches to the `github` reporter, forbids `test.only` and retries failures twice (see `playwright.config.ts`).
 
 ## Gotchas
 
 - Vitest test globals are off, so import `test`, `expect` and friends from `vitest`, and Testing Library's auto-cleanup is wired up by hand in `vitest.setup.ts`.
 - The Node project mocks `server-only` in `vitest.setup.node.ts`, so tests can import server modules such as `lib/db.ts`.
 - Tests never use `data/app.db`: Vitest and the Playwright server each migrate their own temp database (see [database.md](database.md)).
-- Next.js holds a lock on its dev build dir, so a second `next dev` in the same project exits with "Another next dev server is already running"; the Playwright server therefore builds into `.next/e2e` via `NEXT_DIST_DIR` (read in `next.config.ts`) and can run beside `npm run dev`.
-- Next.js adds include entries to `tsconfig.json` for every build dir it sees and reformats the file when it does, which fails `biome check`; the `.next/e2e` entries are committed so that rewrite never happens.
+- Next.js holds a lock on its dev build dir, so a second `next dev` in the same project exits with "Another next dev server is already running"; the Playwright server therefore builds into `E2E_DIST_DIR` via `NEXT_DIST_DIR` (read in `next.config.ts`) and can run beside `npm run dev`.
+- Next.js adds include entries to `tsconfig.json` for every build dir it sees and reformats the file when it does, which fails `biome check`; the `.next/e2e` entries are committed so that rewrite never happens, so an `E2E_DIST_DIR` elsewhere dirties `tsconfig.json`.
 - Playwright re-evaluates its config in each worker, so the free port is picked once and passed to workers through `E2E_PORT`; set `E2E_PORT` yourself to pin it.
 - Path aliases (`@/…`) resolve through Vite's built-in `resolve.tsconfigPaths`, so the `vite-tsconfig-paths` plugin from the Next.js guide is not needed.

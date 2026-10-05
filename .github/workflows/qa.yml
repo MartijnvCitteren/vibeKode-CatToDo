@@ -1,0 +1,63 @@
+# Runs the same QA script agents run locally (scripts/qa.sh); see tech-docs/testing.md. No deployment.
+name: QA
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Skips the browser download on a cache hit but always installs Chromium's system libraries.
+      - run: npx playwright install --with-deps chromium
+
+      # Copies .env.example and fills every empty value (a secret) with a random dummy; real secrets never reach CI.
+      - name: Write .env with generated dummy secrets
+        run: |
+          while IFS= read -r line; do
+            if [[ $line =~ ^[A-Za-z_][A-Za-z0-9_]*=$ ]]; then
+              echo "${line}$(openssl rand -hex 32)"
+            else
+              echo "$line"
+            fi
+          done < .env.example > .env
+
+      - run: npm run qa
+
+      - name: Upload QA log and Playwright results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: qa-results
+          path: |
+            .qa/
+            test-results/
+          if-no-files-found: ignore
