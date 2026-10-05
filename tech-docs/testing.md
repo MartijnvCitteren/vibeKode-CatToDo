@@ -21,8 +21,9 @@
 - Every section runs even after an earlier one fails, so one run reports all problems; the exit code is 1 if any section failed.
 - Each section prints one `PASS`/`FAIL` line; only failing sections print their output, and the full output of every section goes to `.qa/qa.log` (override with `QA_LOG`).
 - Output is plain for agents: `NO_COLOR`, `FORCE_COLOR=0` and `biome --colors=off` strip colors, and findings keep their file and line (`app/page.tsx:4:3`, `lib/db.ts(10,14)`).
-- `npm run typecheck` runs `tsc` over the root project, which also covers `contract/` and `cli/`, and then each workspace's own `typecheck` script once one exists.
+- `npm run typecheck` runs `next typegen` first, because the global route types (`LayoutProps`, `PageProps`) live in generated `.next/types` that a fresh checkout lacks, then `tsc` over the root project, which also covers `contract/` and `cli/`, and then each workspace's own `typecheck` script once one exists.
 - A type error fails both `typecheck` and `build`, because `next build` type-checks too.
+- A long-lived checkout hides missing generated or untracked files (`.next/types`, empty folders), so verify changes to setup in a fresh clone, as CI does.
 
 ## Isolation of the Playwright server
 

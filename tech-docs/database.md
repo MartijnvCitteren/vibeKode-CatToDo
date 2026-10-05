@@ -25,6 +25,7 @@
 
 - `lib/db.ts` reads `DATABASE_URL` on import, so a test must set it before a dynamic `import()` of the module, not in a static import.
 - `server-only` throws outside a React Server bundle, so the Vitest node project mocks it in `vitest.setup.node.ts`.
-- Drizzle v1 writes one folder per migration (`migration.sql` plus `snapshot.json`) and no journal; `drizzle/` does not exist until the first table is generated, and migrating without it succeeds and only creates `__drizzle_migrations`.
+- Drizzle v1 writes one folder per migration (`migration.sql` plus `snapshot.json`) and no journal.
+- The runtime migrator throws when `drizzle/` is missing, so `drizzle/.gitkeep` keeps the folder in git until the first migration lands; with no migrations, migrating only creates `__drizzle_migrations`.
 - `@next/env` is CommonJS, so Node ES module scripts must use its default export (`nextEnv.loadEnvConfig`) rather than a named import.
 - `db:reset` refuses any URL that is not `file:`, and also deletes SQLite's `-journal`, `-wal` and `-shm` side files so the fresh database starts clean.
