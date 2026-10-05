@@ -2,6 +2,9 @@
 // Adapters parse every input with these schemas; the CLI parses every response with them.
 import { z } from "zod";
 
+/** The client id the todo-cat CLI sends in Better Auth's device login flow; the server accepts no other. */
+export const CLI_CLIENT_ID = "todo-cat-cli";
+
 /** A calendar date without time, `yyyy-mm-dd`; never turned into a `Date` (see tech-docs/architecture.md). */
 export const dueDateSchema = z.iso.date();
 

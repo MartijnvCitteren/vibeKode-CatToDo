@@ -10,7 +10,7 @@
 
 ## Commands
 
-- `npm run qa` (`scripts/qa.sh`) runs Biome, typecheck, production build, Vitest and Playwright; it is the done-check for every task and the whole CI job.
+- `npm run qa` (`scripts/qa.sh`) runs Biome, typecheck, production build, the CLI build, Vitest and Playwright; it is the done-check for every task and the whole CI job.
 - `npm test` runs Vitest once across the app and both workspaces; `npm run test:watch` keeps it watching.
 - `npm run test:e2e` runs Playwright, which starts its own `next dev` on a free port and stops it afterwards.
 - `npx playwright install chromium` downloads the browser; run it once per machine and after upgrading `@playwright/test`.
@@ -46,6 +46,6 @@
 - Tests never use `data/app.db`: Vitest and the Playwright server each migrate their own temp database (see [database.md](database.md)).
 - The Playwright server reads `BETTER_AUTH_SECRET` from `.env` and gets `BETTER_AUTH_URL` from `playwright.config.ts` (see [auth.md](auth.md)).
 - Next.js holds a lock on its dev build dir, so a second `next dev` in the same project exits with "Another next dev server is already running"; the Playwright server therefore builds into `E2E_DIST_DIR` via `NEXT_DIST_DIR` (read in `next.config.ts`) and can run beside `npm run dev`.
-- Next.js adds include entries to `tsconfig.json` for every build dir it sees and reformats the file when it does, which fails `biome check`; the `.next/e2e` entries are committed so that rewrite never happens, so an `E2E_DIST_DIR` elsewhere dirties `tsconfig.json`.
+- Next.js adds include entries to `tsconfig.json` for every build dir it sees and reformats the file when it does, which fails `biome check`; the `.next/e2e` and `.next/cli-e2e` (the CLI test's server, see [cli.md](cli.md)) entries are committed so that rewrite never happens, so an `E2E_DIST_DIR` elsewhere dirties `tsconfig.json`.
 - Playwright re-evaluates its config in each worker, so the free port is picked once and passed to workers through `E2E_PORT`; set `E2E_PORT` yourself to pin it.
 - Path aliases (`@/…`) resolve through Vite's built-in `resolve.tsconfigPaths`, so the `vite-tsconfig-paths` plugin from the Next.js guide is not needed.

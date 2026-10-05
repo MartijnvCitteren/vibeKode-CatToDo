@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # todo-cat
 
 A to-do list web app kept by Lissie, a cat with attitude (an AI agent, coming later).
-Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared zod schemas) and `cli/` (the todo-cat CLI, still empty).
+Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared zod schemas) and `cli/` (the `todo-cat` CLI, a REST client).
 Persistence is SQLite through Drizzle ORM and `@libsql/client`; authentication is Better Auth with email and password.
 
 ## Commands
@@ -23,7 +23,8 @@ Run from the repo root.
 - `cp .env.example .env` creates the local env file (gitignored); fill `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.
 - `npm run dev` starts the dev server on http://localhost:3000.
 - `npm run build` builds the app for production.
-- `npm run qa` runs every check (Biome, typecheck, build, Vitest, Playwright) and prints only what failed; see [testing.md](tech-docs/testing.md).
+- `npx todo-cat --help` runs the CLI against `TODO_CAT_URL` (default http://localhost:3000); `npm run build -w todo-cat-cli` rebuilds it.
+- `npm run qa` runs every check (Biome, typecheck, build, CLI build, Vitest, Playwright) and prints only what failed; see [testing.md](tech-docs/testing.md).
 - `npm run lint` runs `biome check` (lint, format and import order).
 - `npm run typecheck` runs `tsc` over the app and all workspaces.
 - `npm run format` rewrites files with the Biome formatter.
@@ -73,6 +74,7 @@ Index:
 - [testing.md](tech-docs/testing.md) — test strategy, the QA script, CI, and gotchas for Vitest and Playwright.
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
 - [auth.md](tech-docs/auth.md) — Better Auth: the one session helper, plugins, schema generation, env and tests.
+- [cli.md](tech-docs/cli.md) — the `todo-cat` CLI: commands, JSON output and exit codes, device login, token storage and its end-to-end test.
 
 ## Keeping this map current
 

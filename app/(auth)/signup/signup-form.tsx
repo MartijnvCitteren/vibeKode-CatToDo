@@ -7,13 +7,14 @@ import { Field } from "@/components/ui/field";
 import { Form } from "@/components/ui/form";
 import { FormError } from "@/components/ui/form-error";
 
-export function SignupForm() {
+export function SignupForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
     signUp,
     {},
   );
   return (
     <Form action={action}>
+      <input type="hidden" name="next" value={next} />
       <Field
         label="Name"
         name="name"

@@ -8,12 +8,13 @@
 - Pages, Server Actions and every later adapter (REST, agent tools, MCP) call `getUserId` and load what else they need by user id, rather than calling `auth.api.getSession` themselves.
 - Signup, login and sign-out are Server Actions in `app/auth-actions.ts`; the `nextCookies` plugin lets them set and clear the session cookie, so the browser needs no Better Auth client yet.
 - `/` checks the session server-side and redirects to `/login`; `app/(auth)/layout.tsx` sends signed-in users away from `/login` and `/signup`.
+- `/login` and `/signup` take `?next=` and return there after success; `nextPath` in `lib/next-path.ts` accepts only a same-site path, so the link cannot redirect off-site.
 - Shared form styling lives in `components/ui/` (`Card`, `Form`, `Field`, `Button`, `FormError`, `TextLink`); pages compose these instead of repeating class strings.
 
 ## Plugins
 
 - `bearer` turns `Authorization: Bearer <token>` into a session lookup, for the REST API and the CLI; sign-in responses carry the token in the `set-auth-token` header.
-- `deviceAuthorization` is the CLI's `gh auth login`-style flow; it accepts only the client id `CLI_CLIENT_ID` (`todo-cat-cli`) and points users at `/device`, a page that does not exist yet.
+- `deviceAuthorization` is the CLI's `gh auth login`-style flow; it accepts only the client id `CLI_CLIENT_ID` (`todo-cat-cli`, from the contract) and points users at `/device` (see [cli.md](cli.md)).
 - The device flow ends in a raw, unsigned session token, so `bearer` must keep its default `requireSignature: false`.
 - `nextCookies` must stay the last plugin, which is why `lib/auth.ts` appends it after the shared ones.
 

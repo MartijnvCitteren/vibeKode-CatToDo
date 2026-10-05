@@ -4,6 +4,7 @@ import { isAPIError } from "better-auth/api";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { nextPath } from "@/lib/next-path";
 
 // What the login and signup forms get back when Better Auth refuses: the message plus what to refill.
 export type AuthFormState = { error?: string; name?: string; email?: string };
@@ -24,6 +25,7 @@ async function attempt(
   }
 }
 
+// Both forms carry a hidden `next` (e.g. /device?user_code=…) to return to after success.
 export async function signUp(
   _: AuthFormState,
   formData: FormData,
@@ -38,7 +40,7 @@ export async function signUp(
     email: body.email,
   });
   if (failed) return failed;
-  redirect("/");
+  redirect(nextPath(text(formData, "next")));
 }
 
 export async function signIn(
@@ -53,7 +55,7 @@ export async function signIn(
     email: body.email,
   });
   if (failed) return failed;
-  redirect("/");
+  redirect(nextPath(text(formData, "next")));
 }
 
 export async function signOut() {
