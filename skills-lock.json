@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "copilotkit": {
+      "source": "CopilotKit/CopilotKit",
+      "sourceType": "github",
+      "skillPath": "skills/copilotkit/SKILL.md",
+      "computedHash": "09461ac92734801e380b4b13826eb48d992c537411aa45228c4e895f873bfff5"
+    },
+    "find-docs": {
+      "source": "upstash/context7",
+      "sourceType": "github",
+      "skillPath": "skills/find-docs/SKILL.md",
+      "computedHash": "93ec2d2786d7e83973252383875c4f345a2ee7cbbd08a1ab38e5201b214640ee"
+    },
+    "mastra": {
+      "source": "mastra-ai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mastra/SKILL.md",
+      "computedHash": "73f845aa59d106d408dfaae1089184fe364acda60fa09683480fdc090417712f"
+    }
+  }
+}
