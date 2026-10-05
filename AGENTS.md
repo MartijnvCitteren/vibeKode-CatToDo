@@ -12,7 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 A to-do list web app kept by Lissie, a cat with attitude (an AI agent, coming later).
 Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared zod schemas) and `cli/` (the todo-cat CLI), both still empty.
-Persistence is SQLite through Drizzle ORM and `@libsql/client`.
+Persistence is SQLite through Drizzle ORM and `@libsql/client`; authentication is Better Auth with email and password.
 
 ## Commands
 
@@ -20,7 +20,7 @@ Run from the repo root.
 
 - Node `^24.15.0 || >=26` is required (`engines` in `package.json`), because jsdom 30 needs it.
 - `npm install` installs the root app and both workspaces.
-- `cp .env.example .env` creates the local env file (gitignored) with `DATABASE_URL`.
+- `cp .env.example .env` creates the local env file (gitignored); fill `BETTER_AUTH_SECRET` with `openssl rand -base64 32`.
 - `npm run dev` starts the dev server on http://localhost:3000.
 - `npm run build` builds the app for production.
 - `npm run qa` runs every check (Biome, typecheck, build, Vitest, Playwright) and prints only what failed; see [testing.md](tech-docs/testing.md).
@@ -29,6 +29,7 @@ Run from the repo root.
 - `npm run format` rewrites files with the Biome formatter.
 - `npm test` runs the Vitest unit and integration tests once.
 - `npm run test:e2e` runs the Playwright end-to-end tests in Chromium (first run `npx playwright install chromium`).
+- `npm run auth:generate` regenerates the Better Auth tables in `lib/auth-schema.ts` after auth options or plugins change.
 - `npm run db:generate` writes a migration from changes in `lib/schema.ts`.
 - `npm run db:migrate` applies pending migrations to the database in `DATABASE_URL`.
 - `npm run db:reset` deletes the local database file and migrates a fresh one.
@@ -49,6 +50,7 @@ Run from the repo root.
 - Next.js: the version-matched guides in `node_modules/next/dist/docs/`.
 - Drizzle: start at https://orm.drizzle.team/llms.txt and follow its `docs/sqlite/…` links, which cover the v1 RC installed here.
 - Drizzle Kit also ships agent skills for its CLI output and migrations in `node_modules/drizzle-kit/skills/`.
+- Better Auth: start at https://better-auth.com/llms.txt; every docs page is also served as Markdown at its URL plus `.md`.
 - Other vendors: check for an `llms.txt` at the docs site root before anything else.
 - Installed skills in `.agents/skills/` and `.claude/skills/` (e.g. `frontend-design`, `impeccable`) carry vetted guidance; use them when the task matches.
 - Any other library: the `ctx7` CLI from the `find-docs` skill (`npx ctx7@latest library <name> "<query>"`, then `docs <id> "<query>"`) is the fallback.
@@ -67,6 +69,7 @@ Index:
 - [workspaces.md](tech-docs/workspaces.md) — the npm workspace layout and why it exists before its content does.
 - [testing.md](tech-docs/testing.md) — test strategy, the QA script, CI, and gotchas for Vitest and Playwright.
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
+- [auth.md](tech-docs/auth.md) — Better Auth: the one session helper, plugins, schema generation, env and tests.
 
 ## Keeping this map current
 

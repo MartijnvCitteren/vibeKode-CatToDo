@@ -4,7 +4,7 @@
 
 - Vitest runs unit and integration tests; Playwright runs end-to-end tests in a real browser against a real Next.js server.
 - Push logic down into plain functions and synchronous components that Vitest can reach, and keep Playwright for user flows and anything rendered by an `async` Server Component (Vitest cannot render those, per the Next.js testing guide).
-- Unit and integration tests sit next to the code they test (`app/page.test.tsx`); end-to-end tests live in `e2e/` as `*.spec.ts`.
+- Unit and integration tests sit next to the code they test (`components/ui/field.test.tsx`, `lib/auth.test.ts`); end-to-end tests live in `e2e/` as `*.spec.ts`.
 - The file extension picks the Vitest environment: `*.test.ts` runs in Node (for `contract/`, `cli/` and server code), `*.test.tsx` runs in jsdom with React Testing Library (see `vitest.config.mts`).
 - Playwright tests Chromium only, to keep runs fast; add projects in `playwright.config.ts` only when a browser-specific bug justifies it.
 
@@ -44,6 +44,7 @@
 - Vitest test globals are off, so import `test`, `expect` and friends from `vitest`, and Testing Library's auto-cleanup is wired up by hand in `vitest.setup.ts`.
 - The Node project mocks `server-only` in `vitest.setup.node.ts`, so tests can import server modules such as `lib/db.ts`.
 - Tests never use `data/app.db`: Vitest and the Playwright server each migrate their own temp database (see [database.md](database.md)).
+- The Playwright server reads `BETTER_AUTH_SECRET` from `.env` and gets `BETTER_AUTH_URL` from `playwright.config.ts` (see [auth.md](auth.md)).
 - Next.js holds a lock on its dev build dir, so a second `next dev` in the same project exits with "Another next dev server is already running"; the Playwright server therefore builds into `E2E_DIST_DIR` via `NEXT_DIST_DIR` (read in `next.config.ts`) and can run beside `npm run dev`.
 - Next.js adds include entries to `tsconfig.json` for every build dir it sees and reformats the file when it does, which fails `biome check`; the `.next/e2e` entries are committed so that rewrite never happens, so an `E2E_DIST_DIR` elsewhere dirties `tsconfig.json`.
 - Playwright re-evaluates its config in each worker, so the free port is picked once and passed to workers through `E2E_PORT`; set `E2E_PORT` yourself to pin it.

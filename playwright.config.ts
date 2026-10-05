@@ -39,6 +39,8 @@ export default defineConfig({
       NEXT_DIST_DIR: process.env.E2E_DIST_DIR ?? ".next/e2e",
       // Set before .env is read, so both drizzle-kit and Next.js keep this value.
       DATABASE_URL: process.env.E2E_DATABASE_URL,
+      // Better Auth trusts only its own origin, which here carries the random port.
+      BETTER_AUTH_URL: baseURL,
     },
     reuseExistingServer: false,
     timeout: 120_000,
