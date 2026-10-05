@@ -31,6 +31,7 @@
 - Exit codes group what to do next: 1 failure, 2 bad input, 3 not logged in, 4 no such todo, 5 server unreachable; the table in `cli/src/errors.ts` is the single source.
 - Nothing prompts; `delete` refuses without `--yes` (`confirmation-required`, exit 2).
 - `login` blocks until approval, printing the code and URL on stderr first, so an agent should run it in the background and relay the code to its human.
+- The project skill `.claude/skills/todo-cat-cli/` teaches agents the workflows and pitfalls that `--help` doesn't cover; update it when a command, its output or an exit code changes.
 
 ## Login and the token
 
