@@ -12,6 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 A to-do list web app kept by Lissie, a cat with attitude (an AI agent, coming later).
 Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared zod schemas) and `cli/` (the todo-cat CLI), both still empty.
+Persistence is SQLite through Drizzle ORM and `@libsql/client`.
 
 ## Commands
 
@@ -19,17 +20,30 @@ Run from the repo root.
 
 - Node `^24.15.0 || >=26` is required (`engines` in `package.json`), because jsdom 30 needs it.
 - `npm install` installs the root app and both workspaces.
+- `cp .env.example .env` creates the local env file (gitignored) with `DATABASE_URL`.
 - `npm run dev` starts the dev server on http://localhost:3000.
 - `npm run build` builds the app for production.
 - `npm run lint` runs `biome check` (lint, format and import order); it must pass before every commit.
 - `npm run format` rewrites files with the Biome formatter.
 - `npm test` runs the Vitest unit and integration tests once.
 - `npm run test:e2e` runs the Playwright end-to-end tests in Chromium (first run `npx playwright install chromium`).
+- `npm run db:generate` writes a migration from changes in `lib/schema.ts`.
+- `npm run db:migrate` applies pending migrations to the database in `DATABASE_URL`.
+- `npm run db:reset` deletes the local database file and migrates a fresh one.
 
 ## Verify, don't recall
 
-- Next.js, React, Tailwind, TypeScript and Biome here are newer than your training data.
-- Check APIs against current docs (`node_modules/next/dist/docs/` for Next.js) before writing code, not against memory.
+- Next.js, React, Tailwind, TypeScript, Biome and Drizzle here are newer than your training data.
+- Check APIs against current docs (see "Researching docs") before writing code, not against memory.
+
+## Researching docs
+
+- Next.js: the version-matched guides in `node_modules/next/dist/docs/`.
+- Drizzle: start at https://orm.drizzle.team/llms.txt and follow its `docs/sqlite/…` links, which cover the v1 RC installed here.
+- Drizzle Kit also ships agent skills for its CLI output and migrations in `node_modules/drizzle-kit/skills/`.
+- Other vendors: check for an `llms.txt` at the docs site root before anything else.
+- Installed skills in `.agents/skills/` and `.claude/skills/` (e.g. `frontend-design`, `impeccable`) carry vetted guidance; use them when the task matches.
+- Any other library: the `ctx7` CLI from the `find-docs` skill (`npx ctx7@latest library <name> "<query>"`, then `docs <id> "<query>"`) is the fallback.
 
 ## Tech docs
 
@@ -44,6 +58,7 @@ Index:
 
 - [workspaces.md](tech-docs/workspaces.md) — the npm workspace layout and why it exists before its content does.
 - [testing.md](tech-docs/testing.md) — test strategy, commands and gotchas for Vitest and Playwright.
+- [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
 
 ## Keeping this map current
 

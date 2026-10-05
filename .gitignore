@@ -13,4 +13,5 @@ blob-report/
 playwright/.cache/
 
 # misc
-.env*.local
+.env*
+!.env.example
