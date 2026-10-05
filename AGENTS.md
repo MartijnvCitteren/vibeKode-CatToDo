@@ -11,7 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # todo-cat
 
 A to-do list web app kept by Lissie, a cat with attitude (an AI agent, coming later).
-Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared zod schemas) and `cli/` (the todo-cat CLI), both still empty.
+Next.js 16 App Router at the repo root, plus npm workspaces `contract/` (shared zod schemas) and `cli/` (the todo-cat CLI, still empty).
 Persistence is SQLite through Drizzle ORM and `@libsql/client`; authentication is Better Auth with email and password.
 
 ## Commands
@@ -33,6 +33,7 @@ Run from the repo root.
 - `npm run db:generate` writes a migration from changes in `lib/schema.ts`.
 - `npm run db:migrate` applies pending migrations to the database in `DATABASE_URL`.
 - `npm run db:reset` deletes the local database file and migrates a fresh one.
+- `npm run db:seed` adds the demo user `demo@todo-cat.dev` (password `cat-person-2026`) with sample todos; rerunning resets them.
 
 ## Definition of done
 
@@ -66,6 +67,7 @@ Run from the repo root.
 
 Index:
 
+- [architecture.md](tech-docs/architecture.md) — the todo service, its adapters, the data model and the contract: start here for any todo feature.
 - [workspaces.md](tech-docs/workspaces.md) — the npm workspace layout and why it exists before its content does.
 - [testing.md](tech-docs/testing.md) — test strategy, the QA script, CI, and gotchas for Vitest and Playwright.
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.

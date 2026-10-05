@@ -7,6 +7,7 @@
 - `lib/db.ts` imports `server-only`, so any Client Component that reaches it fails the build instead of shipping database code to the browser.
 - Tables live in `lib/schema.ts`; the auth tables are generated into `lib/auth-schema.ts` and re-exported there (see [auth.md](auth.md)).
 - Migrations are generated SQL files under `drizzle/`, applied by `drizzle-kit migrate`; the schema is never pushed straight to a database.
+- `npm run db:seed` fills the local database with a demo user and todos (see [architecture.md](architecture.md)); it refuses any URL that is not `file:`.
 
 ## Decisions
 
@@ -28,4 +29,5 @@
 - Drizzle v1 writes one folder per migration (`migration.sql` plus `snapshot.json`) and no journal.
 - `npm run db:generate` runs Biome's formatter over `drizzle/` afterwards, because drizzle-kit's `snapshot.json` layout fails `biome check`.
 - `@next/env` is CommonJS, so Node ES module scripts must use its default export (`nextEnv.loadEnvConfig`) rather than a named import.
+- Scripts that import `lib/` run under `tsx --conditions=react-server`: `tsx` resolves the extensionless imports plain Node rejects, and the condition makes `server-only` an empty module instead of a throw.
 - `db:reset` refuses any URL that is not `file:`, and also deletes SQLite's `-journal`, `-wal` and `-shm` side files so the fresh database starts clean.

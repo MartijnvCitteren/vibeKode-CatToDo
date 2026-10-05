@@ -3,7 +3,7 @@
 ## Layout
 
 - The repo root is the Next.js web app and also the npm workspace root (`workspaces` in `package.json`).
-- `contract/` (package `@todo-cat/contract`) will hold the zod schemas shared by the web app and the CLI.
+- `contract/` (package `@todo-cat/contract`) holds the zod schemas shared by the web app and the CLI (see [architecture.md](architecture.md)).
 - `cli/` (package `todo-cat-cli`) will hold the todo-cat command-line client.
 
 ## Why the workspaces exist before their content
@@ -14,4 +14,5 @@
 
 ## Gotchas
 
+- `contract/` has no build step: its `exports` point at `src/index.ts`, which Turbopack (it transpiles workspace packages by itself), Vitest, `tsc` and `tsx` all compile directly.
 - Add a dependency to a workspace with `npm install <pkg> -w contract` (or `-w cli`); without `-w` it lands in the root app's `package.json`.

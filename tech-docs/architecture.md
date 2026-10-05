@@ -26,6 +26,11 @@ around it. Hexagonal (ports and adapters), without the ceremony.
   Drizzle rows.
 - Rule violations are a few typed errors with stable codes (`todo-not-found`,
   `validation-failed`). Adapters map them; they don't invent their own.
+- `TodoError` in the service carries the code. The service itself only throws
+  `todo-not-found`; adapters throw `validation-failed` when a contract schema rejects input.
+- A list is ordered open before done, then by due date with undated last, then oldest first.
+- `addTodo` and `updateTodo` take an optional `now` last, for the dev seed and tests;
+  adapters leave it out.
 
 ## Data
 
@@ -34,11 +39,20 @@ around it. Hexagonal (ports and adapters), without the ceremony.
 - A due date is a date without time and stays an ISO `yyyy-mm-dd` string everywhere.
   A JavaScript `Date` is midnight UTC and shows the previous day west of Greenwich.
 - `completed at` is set when a todo is marked done and cleared when it's reopened.
+  Marking a done todo done again keeps the first stamp.
+- A check constraint keeps `done` and `completed at` in step, so a bug that sets only
+  one of them fails the write instead of corrupting the data.
+- The owner cascade relies on SQLite foreign keys, which `@libsql/client` turns on;
+  `lib/todo-service.test.ts` proves it by deleting a user.
 
 ## The contract
 
 - The `contract/` workspace (`@todo-cat/contract`) holds the zod schemas for todos,
-  inputs, list filters, and the error body `{ error: { code, message } }`.
+  inputs, list filters, and the error body `{ error: { code, message } }`, all in
+  `contract/src/index.ts`.
+- Input schemas are strict, so a misspelled field (`due` for `dueDate`) is a
+  `validation-failed` instead of silently ignored.
+- In a change set a missing field stays as it is and `dueDate: null` clears the due date.
 - Server and clients import the same schemas. The CLI parses every response with
   them, so a server change that breaks the shape fails loudly in the client.
 - Validation lives in the schemas, at the adapter boundary. The service trusts its
@@ -63,8 +77,14 @@ around it. Hexagonal (ports and adapters), without the ceremony.
   tests run it against a temp SQLite file.
 - No pagination, sharing between users, soft delete, or optimistic concurrency.
 
+## Dev seed
+
+- `npm run db:seed` (`scripts/db-seed.mts`) signs up the demo user through Better Auth and
+  adds its todos through the service, so the seed follows the same rules as the app.
+- Rerunning it resets the demo user's password and replaces its todos.
+
 ## Tests
 
 - The service is tested against a temp database with **two users for every use case**:
-  one user never sees, changes, or deletes the other's todos.
+  one user never sees, changes, or deletes the other's todos (`lib/todo-service.test.ts`).
 - Adapter tests cover only the mapping: 401 without a user, error codes, status codes.
