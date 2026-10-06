@@ -73,3 +73,35 @@ test("Lissie adds buy milk, the sidebar shows it, and her tool call survives a r
   await expect(milk).toHaveCount(1);
   await expect(added).toHaveCount(1);
 });
+
+test("a new conversation starts empty and stays the current one after a reload", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const user = page.getByTestId("copilot-user-message");
+  const lissie = page.getByTestId("copilot-assistant-message");
+  const newConversation = page.getByRole("button", {
+    name: "New conversation",
+  });
+
+  await signUp(page);
+  await expect(newConversation).toBeDisabled();
+  await send(page, "Hi Lissie. What is on my list?");
+  await expect(user).toHaveText(["Hi Lissie. What is on my list?"]);
+  await expect(newConversation).toBeEnabled();
+
+  const connected = page.waitForResponse((r) => isConnect(r.url()));
+  await newConversation.click();
+  await connected;
+  await expect(user).toHaveCount(0);
+  await expect(lissie).toHaveCount(0);
+  await expect(newConversation).toBeDisabled();
+
+  await send(page, "Hello again, cat.");
+  await expect(user).toHaveText(["Hello again, cat."]);
+
+  const reconnected = page.waitForResponse((r) => isConnect(r.url()));
+  await page.reload();
+  await (await reconnected).finished();
+  await expect(user).toHaveText(["Hello again, cat."]);
+});

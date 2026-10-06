@@ -9,7 +9,8 @@ import {
 } from "@copilotkit/react-core/v2";
 import "@copilotkit/react-core/v2/styles.css";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/form-error";
 import {
   addTodoArgs,
@@ -21,11 +22,12 @@ import {
   setTodoDoneArgs,
   setTodoDoneLine,
 } from "@/lib/lissie-tool-calls";
+import { startNewConversation } from "./lissie-actions";
 
 type ChatProps = { agentId: string; threadId: string };
 
-// The chat with Lissie. The server page hands in her agent id and the user's one thread, so the
-// chat replays that thread's history on load; the runtime refuses any other thread anyway.
+// The chat with Lissie. The server page hands in her agent id and the user's current thread, so the
+// chat replays that thread's history on load; the runtime refuses threads of other users anyway.
 export function LissieChat(props: ChatProps) {
   return (
     <CopilotKitProvider
@@ -45,8 +47,12 @@ function Chat({ agentId, threadId }: ChatProps) {
   // The shared agent the chat drives; CopilotChat pins it to threadId.
   const { agent } = useAgent({
     agentId,
-    updates: [UseAgentUpdate.OnRunStatusChanged],
+    updates: [
+      UseAgentUpdate.OnRunStatusChanged,
+      UseAgentUpdate.OnMessagesChanged,
+    ],
   });
+  const [starting, startTransition] = useTransition();
   useEffect(() => {
     if (agent.isRunning) setError(undefined);
   }, [agent.isRunning]);
@@ -55,6 +61,18 @@ function Chat({ agentId, threadId }: ChatProps) {
 
   return (
     <div className="flex h-full flex-col px-[5px]">
+      <div className="flex justify-end px-4 pt-3">
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-9 px-3"
+          // Nothing to leave behind in an empty chat, and a running reply would be cut off.
+          disabled={starting || agent.isRunning || agent.messages.length === 0}
+          onClick={() => startTransition(() => startNewConversation())}
+        >
+          New conversation
+        </Button>
+      </div>
       <CopilotChat
         agentId={agentId}
         threadId={threadId}

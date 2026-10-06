@@ -65,13 +65,58 @@ export const mastra = new Mastra({
 });
 
 const THREAD_PREFIX = "lissie-";
+// The suffix of every conversation after a user's first. Better Auth ids have no dashes,
+// so stripping it leaves exactly the user id.
+const NEW_THREAD_SUFFIX =
+  /-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /**
- * The one conversation a user has with Lissie. Derived from the user id on the server,
- * so the runtime can check every request's thread against the session's user.
+ * A user's first conversation with Lissie. Thread ids name their user, so the runtime
+ * can check every request's thread against the session's user without a lookup.
  */
 export function lissieThreadId(userId: string): string {
   return `${THREAD_PREFIX}${userId}`;
+}
+
+/** A fresh conversation for the user: their first thread id plus a random UUID. */
+export function newLissieThreadId(userId: string): string {
+  return `${lissieThreadId(userId)}-${crypto.randomUUID()}`;
+}
+
+/** The user a Lissie thread id names, or null for an id that isn't a Lissie thread. */
+export function lissieThreadUser(threadId: string): string | null {
+  if (!threadId.startsWith(THREAD_PREFIX)) return null;
+  return (
+    threadId.slice(THREAD_PREFIX.length).replace(NEW_THREAD_SUFFIX, "") || null
+  );
+}
+
+async function lissieMemory() {
+  const memory = await lissie.getMemory();
+  if (!memory) throw new Error("Lissie has no memory configured");
+  return memory;
+}
+
+/** The conversation the chat shows: the user's newest thread, or their first one before they have any. */
+export async function currentLissieThreadId(userId: string): Promise<string> {
+  const { threads } = await (await lissieMemory()).listThreads({
+    filter: { resourceId: userId },
+    orderBy: { field: "createdAt", direction: "DESC" },
+    perPage: 1,
+  });
+  const newest = threads[0]?.id;
+  return newest && lissieThreadUser(newest) === userId
+    ? newest
+    : lissieThreadId(userId);
+}
+
+/** Starts a new, empty conversation, which becomes the user's current one; earlier threads stay in memory. */
+export async function startLissieThread(userId: string): Promise<string> {
+  const thread = await (await lissieMemory()).createThread({
+    threadId: newLissieThreadId(userId),
+    resourceId: userId,
+  });
+  return thread.id;
 }
 
 /**
@@ -80,10 +125,9 @@ export function lissieThreadId(userId: string): string {
  * and only messages stored under that user count.
  */
 export async function lissieHistory(threadId: string): Promise<Message[]> {
-  if (!threadId.startsWith(THREAD_PREFIX)) return [];
-  const userId = threadId.slice(THREAD_PREFIX.length);
-  const memory = await lissie.getMemory();
-  if (!memory) throw new Error("Lissie has no memory configured");
+  const userId = lissieThreadUser(threadId);
+  if (!userId) return [];
+  const memory = await lissieMemory();
   const thread = await memory.getThreadById({ threadId });
   if (thread?.resourceId !== userId) return [];
   const { messages } = await memory.recall({

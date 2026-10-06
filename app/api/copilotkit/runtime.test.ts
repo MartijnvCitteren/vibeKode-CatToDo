@@ -198,9 +198,9 @@ async function memory() {
   return memory;
 }
 
-async function storedMessages(user: User) {
+async function storedMessages(user: User, threadId = user.thread) {
   const { messages } = await (await memory()).recall({
-    threadId: user.thread,
+    threadId,
     perPage: false,
   });
   return messages;
@@ -388,6 +388,60 @@ describe("a user's conversation with Lissie", () => {
     expect(await lissie.lissieHistory(third.thread)).toEqual([]);
 
     expect(await lissie.lissieHistory("not-a-lissie-thread")).toEqual([]);
+  });
+});
+
+describe("a new conversation", () => {
+  let owner: User;
+  let stranger: User;
+  let fresh: string;
+
+  beforeAll(async () => {
+    owner = await signUp();
+    stranger = await signUp();
+  });
+
+  test("before any conversation, the current one is the user's first thread", async () => {
+    expect(await lissie.currentLissieThreadId(owner.id)).toBe(owner.thread);
+  });
+
+  test("starting one makes a fresh thread of the user's the current one", async () => {
+    expect((await run(owner)).status).toBe(200);
+    fresh = await lissie.startLissieThread(owner.id);
+    expect(fresh).not.toBe(owner.thread);
+    expect(lissie.lissieThreadUser(fresh)).toBe(owner.id);
+    expect(await lissie.currentLissieThreadId(owner.id)).toBe(fresh);
+    expect(await lissie.currentLissieThreadId(stranger.id)).toBe(
+      stranger.thread,
+    );
+  });
+
+  test("it starts empty, takes runs, and leaves the earlier conversation alone", async () => {
+    ɵGLOBAL_STORE.clear();
+    expect(await eventsOf(await connect(owner, fresh))).toEqual([]);
+
+    const response = await run(owner, fresh);
+    expect(response.status).toBe(200);
+    expect(textOf(await eventsOf(response))).toBe(REPLY);
+    expect(await storedMessages(owner, fresh)).toHaveLength(2);
+    expect(await storedMessages(owner)).toHaveLength(2);
+    expect((await stop(owner, fresh)).status).toBe(200);
+  });
+
+  test("another user can't run, connect to or stop it", async () => {
+    const calls = model.doStreamCalls.length;
+    expect((await run(stranger, fresh)).status).toBe(404);
+    expect((await connect(stranger, fresh)).status).toBe(404);
+    expect((await stop(stranger, fresh)).status).toBe(404);
+    expect(model.doStreamCalls).toHaveLength(calls);
+  });
+
+  test("a thread id names its user only with a UUID suffix", () => {
+    expect(lissie.lissieThreadUser(owner.thread)).toBe(owner.id);
+    expect(lissie.lissieThreadUser(`${owner.thread}-2`)).toBe(`${owner.id}-2`);
+    expect(lissie.lissieThreadUser(`${fresh}-x`)).not.toBe(owner.id);
+    expect(lissie.lissieThreadUser("lissie-")).toBeNull();
+    expect(lissie.lissieThreadUser(owner.id)).toBeNull();
   });
 });
 

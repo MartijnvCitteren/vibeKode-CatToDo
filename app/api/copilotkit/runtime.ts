@@ -15,14 +15,14 @@ import { defer, from, mergeAll, type Observable } from "rxjs";
 import {
   LISSIE_AGENT_ID,
   lissieHistory,
-  lissieThreadId,
+  lissieThreadUser,
   mastra,
 } from "@/lib/lissie";
 import { lissieRequestContext } from "@/lib/lissie-tools";
 import { getUserId } from "@/lib/session";
 
 // The CopilotKit runtime that serves Lissie over AG-UI (see tech-docs/agent.md).
-// Every route needs a session, and only the chat's own routes on the caller's own thread get through.
+// Every route needs a session, and only the chat's own routes on one of the caller's own threads get through.
 
 export const BASE_PATH = "/api/copilotkit";
 
@@ -120,20 +120,22 @@ export const handler = createCopilotRuntimeHandler({
     onRequest: async ({ request }) => {
       await requireUserId(request);
     },
-    // Allow-list: discovery, plus run, connect and stop on the caller's own thread.
+    // Allow-list: discovery, plus run, connect and stop on a thread the caller owns.
     // Everything else (thread lists and history, transcribe, suggestions, inspector, …) is not found,
     // and so is another user's thread, so the API never confirms that it exists.
     onBeforeHandler: async ({ request, route }) => {
-      const ownThread = lissieThreadId(await requireUserId(request));
+      const userId = await requireUserId(request);
+      const owns = (threadId: string | null) =>
+        threadId !== null && lissieThreadUser(threadId) === userId;
       switch (route.method) {
         case "info":
           return;
         case "agent/run":
         case "agent/connect":
-          if ((await bodyThreadId(request)) === ownThread) return;
+          if (owns(await bodyThreadId(request))) return;
           break;
         case "agent/stop":
-          if (route.threadId === ownThread) return;
+          if (owns(route.threadId)) return;
           break;
       }
       throw errorResponse(404, "Not found", "Lissie has nothing for you here");

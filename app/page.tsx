@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
-import { LISSIE_AGENT_ID, lissieThreadId } from "@/lib/lissie";
+import { currentLissieThreadId, LISSIE_AGENT_ID } from "@/lib/lissie";
 import { getUserId } from "@/lib/session";
 import { listTodos } from "@/lib/todo-service";
 import { signOut } from "./auth-actions";
@@ -17,7 +17,10 @@ export default async function Home() {
     columns: { name: true },
   });
   if (!user) redirect("/login");
-  const todos = await listTodos(userId);
+  const [todos, threadId] = await Promise.all([
+    listTodos(userId),
+    currentLissieThreadId(userId),
+  ]);
 
   return (
     <div className="flex h-dvh flex-col bg-zinc-50 dark:bg-black">
@@ -40,9 +43,11 @@ export default async function Home() {
       </header>
       <main className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {/* Keyed, so a new conversation mounts a fresh chat on its thread. */}
           <LissieChat
+            key={threadId}
             agentId={LISSIE_AGENT_ID}
-            threadId={lissieThreadId(userId)}
+            threadId={threadId}
           />
         </div>
         <TodoSidebar todos={todos} />
