@@ -12,6 +12,15 @@ Schemas are from `@todo-cat/contract`; every error body is `errorBodySchema`, an
 - `PATCH /api/todos/:id` — body `todoChangesSchema` → 200 `todoSchema`; 400 `validation-failed`, 404 `todo-not-found`.
 - `DELETE /api/todos/:id` → 204 with no body; 404 `todo-not-found`.
 
+## OpenAPI spec
+
+- `contract/openapi.json` is the OpenAPI 3.1 description of these endpoints, for API tools and generated clients; never edit it by hand.
+- `contract/src/openapi.ts` builds it: the schemas come from the contract through `z.toJSONSchema`, the paths, status codes and descriptions are written there.
+- `npm run openapi` rewrites the file, and `contract/src/openapi.test.ts` fails while the committed file differs from the generated one, so change a contract schema or an endpoint, then rerun it.
+- Schemas are converted in `io: "input"` mode, so the defaulted `status` filter is optional; response schemas have no defaults or transforms, so input and output are the same for them.
+- A zod `refine` has no JSON Schema form: the "at least one change" rule of `todoChangesSchema` is added by hand as `minProperties: 1`, and a new refine needs the same treatment.
+- `npx @redocly/cli lint contract/openapi.json` validates the file; its only warnings are the missing license and the localhost server.
+
 ## Getting a bearer token with curl
 
 Sign in and read the token from the `set-auth-token` response header (the `bearer` plugin, see [auth.md](auth.md)):

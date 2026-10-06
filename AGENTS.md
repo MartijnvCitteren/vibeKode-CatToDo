@@ -34,6 +34,7 @@ Run from the repo root.
 - `npm run db:generate` writes a migration from changes in `lib/schema.ts`.
 - `npm run db:migrate` applies pending migrations to the database in `DATABASE_URL`.
 - `npm run db:reset` deletes the local database file and migrates a fresh one.
+- `npm run openapi` regenerates `contract/openapi.json` from the contract schemas; a Vitest test fails while it is stale.
 - `npm run db:seed` adds the demo user `demo@todo-cat.dev` (password `cat-person-2026`) with sample todos; rerunning resets them.
 
 ## Definition of done
@@ -70,7 +71,7 @@ Index:
 
 - [architecture.md](tech-docs/architecture.md) — the todo service, its adapters, the data model and the contract: start here for any todo feature.
 - [workspaces.md](tech-docs/workspaces.md) — the npm workspace layout and why it exists before its content does.
-- [rest-api.md](tech-docs/rest-api.md) — the `/api/todos` endpoints, their schemas and status codes, and getting a bearer token with curl.
+- [rest-api.md](tech-docs/rest-api.md) — the `/api/todos` endpoints, their schemas and status codes, the OpenAPI spec, and getting a bearer token with curl.
 - [testing.md](tech-docs/testing.md) — test strategy, the QA script, CI, and gotchas for Vitest and Playwright.
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
 - [auth.md](tech-docs/auth.md) — Better Auth: the one session helper, plugins, schema generation, env and tests.
