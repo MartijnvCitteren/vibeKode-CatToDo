@@ -21,3 +21,5 @@ playwright/.cache/
 
 # mitmproxy CA and state
 .mitmproxy/
+
+.DS_Store
