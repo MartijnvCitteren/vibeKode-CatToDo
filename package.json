@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:proxy": "bash scripts/dev-proxy.sh",
+    "proxy": "docker compose up -d mitmproxy",
+    "proxy:stop": "docker compose down",
     "build": "next build",
     "start": "next start",
     "lint": "biome check",

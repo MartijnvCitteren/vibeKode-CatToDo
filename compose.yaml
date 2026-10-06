@@ -1,0 +1,24 @@
+# mitmproxy for watching the app's traffic in development (see tech-docs/traffic.md).
+services:
+  mitmproxy:
+    image: mitmproxy/mitmproxy:12.2.3
+    command:
+      - mitmweb
+      - --web-host=0.0.0.0
+      - --web-port=8081
+      - --set=web_password=todo-cat
+      # Inbound: browser and CLI → :8000 → the dev server on the host.
+      # Keeping the Host header lets Server Actions match it against Origin.
+      - --mode=reverse:http://host.docker.internal:3000@8000
+      - --set=keep_host_header=true
+      # Outbound: the dev server's fetches (OpenRouter) → :8001 → the internet.
+      - --mode=regular@8001
+    ports:
+      - 127.0.0.1:8000:8000
+      - 127.0.0.1:8001:8001
+      - 127.0.0.1:8081:8081
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      # The CA lands here so the dev server can trust it through NODE_EXTRA_CA_CERTS.
+      - ./.mitmproxy:/home/mitmproxy/.mitmproxy

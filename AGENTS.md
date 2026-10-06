@@ -22,6 +22,7 @@ Run from the repo root.
 - `npm install` installs the root app and both workspaces.
 - `cp .env.example .env` creates the local env file (gitignored); fill `BETTER_AUTH_SECRET` with `openssl rand -base64 32` and `OPENROUTER_API_KEY` with an OpenRouter key.
 - `npm run dev` starts the dev server on http://localhost:3000.
+- `npm run proxy` starts mitmproxy in Docker and `npm run dev:proxy` the dev server behind it, to watch traffic at http://localhost:8081; see [traffic.md](tech-docs/traffic.md).
 - `npm run build` builds the app for production.
 - `npx todo-cat --help` runs the CLI against `TODO_CAT_URL` (default http://localhost:3000); `npm run build -w todo-cat-cli` rebuilds it.
 - `npm run qa` runs every check (Biome, typecheck, build, CLI build, Vitest, Playwright) and prints only what failed; see [testing.md](tech-docs/testing.md).
@@ -77,6 +78,7 @@ Index:
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
 - [auth.md](tech-docs/auth.md) — Better Auth: the one session helper, plugins, schema generation, env and tests.
 - [cli.md](tech-docs/cli.md) — the `todo-cat` CLI: commands, JSON output and exit codes, device login, token storage and its end-to-end test.
+- [traffic.md](tech-docs/traffic.md) — watching inbound and outbound HTTP traffic with mitmproxy in Docker, and why it is wired the way it is.
 - [agent.md](tech-docs/agent.md) — Lissie: the Mastra agent, her tools and how they get the user, memory and history replay, the chat and sidebar, the CopilotKit runtime and its routes, and tests.
 
 ## Keeping this map current
