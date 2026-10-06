@@ -12,35 +12,73 @@ let dir: string;
 let db: typeof import("@/lib/db").db;
 let auth: typeof import("@/lib/auth").auth;
 let lissie: typeof import("@/lib/lissie");
+let service: typeof import("@/lib/todo-service");
 let handler: typeof import("./runtime").handler;
 
 const REPLY = "Mrrp. Fine, I'll look at your list.";
+const COMMENT = "Added. Don't expect gratitude.";
 
-// Stands in for OpenRouter: every run answers with REPLY, and the calls are counted.
+const usage = {
+  inputTokens: {
+    total: 1,
+    noCache: 1,
+    cacheRead: undefined,
+    cacheWrite: undefined,
+  },
+  outputTokens: { total: 1, text: 1, reasoning: undefined },
+};
+
+function textTurn(text: string) {
+  return [
+    { type: "text-start", id: "reply" } as const,
+    { type: "text-delta", id: "reply", delta: text } as const,
+    { type: "text-end", id: "reply" } as const,
+    {
+      type: "finish",
+      finishReason: { unified: "stop", raw: "stop" },
+      usage,
+    } as const,
+  ];
+}
+
+function addTodoTurn(title: string) {
+  return [
+    {
+      type: "tool-call",
+      toolCallId: `call-${crypto.randomUUID()}`,
+      toolName: "addTodo",
+      input: JSON.stringify({ title }),
+    } as const,
+    {
+      type: "finish",
+      finishReason: { unified: "tool-calls", raw: "tool_calls" },
+      usage,
+    } as const,
+  ];
+}
+
+// Stands in for OpenRouter, and the calls are counted. "Add <title>" makes Lissie call addTodo,
+// and once the tool has answered she comments with COMMENT; anything else gets REPLY.
 const model = new MockLanguageModelV3({
-  doStream: async () => ({
-    stream: simulateReadableStream({
-      chunks: [
-        { type: "stream-start", warnings: [] },
-        { type: "text-start", id: "reply" },
-        { type: "text-delta", id: "reply", delta: REPLY },
-        { type: "text-end", id: "reply" },
-        {
-          type: "finish",
-          finishReason: { unified: "stop", raw: "stop" },
-          usage: {
-            inputTokens: {
-              total: 1,
-              noCache: 1,
-              cacheRead: undefined,
-              cacheWrite: undefined,
-            },
-            outputTokens: { total: 1, text: 1, reasoning: undefined },
-          },
-        },
-      ],
-    }),
-  }),
+  doStream: async ({ prompt }) => {
+    const last = prompt.at(-1);
+    const text =
+      last?.role === "user"
+        ? last.content.flatMap((p) => (p.type === "text" ? [p.text] : []))
+        : [];
+    const title = text.join("").match(/^Add (.+)$/)?.[1];
+    const turn =
+      last?.role === "tool"
+        ? textTurn(COMMENT)
+        : title
+          ? addTodoTurn(title)
+          : textTurn(REPLY);
+    return {
+      stream: simulateReadableStream({
+        chunks: [{ type: "stream-start", warnings: [] } as const, ...turn],
+      }),
+    };
+  },
 });
 
 beforeAll(async () => {
@@ -53,6 +91,7 @@ beforeAll(async () => {
   await migrate(db, { migrationsFolder: "drizzle" });
   ({ auth } = await import("@/lib/auth"));
   lissie = await import("@/lib/lissie");
+  service = await import("@/lib/todo-service");
   ({ handler } = await import("./runtime"));
   lissie.lissie.__updateModel({ model });
 });
@@ -126,7 +165,12 @@ const stop = (user: User, threadId = user.thread) =>
   call("POST", `/agent/lissie/stop/${threadId}`, user, {});
 
 // The fields these tests read from AG-UI events.
-type Event = BaseEvent & { delta?: string; messages?: Message[] };
+type Event = BaseEvent & {
+  delta?: string;
+  messages?: Message[];
+  toolCallName?: string;
+  content?: string;
+};
 
 /** The AG-UI events of a server-sent event stream. */
 async function eventsOf(response: Response): Promise<Event[]> {
@@ -139,6 +183,13 @@ async function eventsOf(response: Response): Promise<Event[]> {
 
 function snapshotOf(events: Event[]): Message[] | undefined {
   return events.find((e) => e.type === EventType.MESSAGES_SNAPSHOT)?.messages;
+}
+
+function textOf(events: Event[]): string {
+  return events
+    .filter((e) => e.type === EventType.TEXT_MESSAGE_CONTENT)
+    .map((e) => e.delta)
+    .join("");
 }
 
 async function memory() {
@@ -248,12 +299,7 @@ describe("a user's conversation with Lissie", () => {
   test("a run streams Lissie's reply and stores both messages under the user", async () => {
     const response = await run(owner);
     expect(response.status).toBe(200);
-    const events = await eventsOf(response);
-    const text = events
-      .filter((e) => e.type === EventType.TEXT_MESSAGE_CONTENT)
-      .map((e) => e.delta)
-      .join("");
-    expect(text).toBe(REPLY);
+    expect(textOf(await eventsOf(response))).toBe(REPLY);
 
     const thread = await (await memory()).getThreadById({
       threadId: owner.thread,
@@ -342,5 +388,94 @@ describe("a user's conversation with Lissie", () => {
     expect(await lissie.lissieHistory(third.thread)).toEqual([]);
 
     expect(await lissie.lissieHistory("not-a-lissie-thread")).toEqual([]);
+  });
+});
+
+describe("Lissie's tools", () => {
+  let owner: User;
+  let stranger: User;
+  let replayed: Message[];
+
+  beforeAll(async () => {
+    owner = await signUp();
+    stranger = await signUp();
+  });
+
+  test("a run adds the todo for the session's user and streams the call and its result", async () => {
+    const response = await call(
+      "POST",
+      "/agent/lissie/run",
+      owner,
+      runInput(owner.thread, "Add buy milk"),
+    );
+    expect(response.status).toBe(200);
+    const events = await eventsOf(response);
+    expect(
+      events.find((e) => e.type === EventType.TOOL_CALL_START),
+    ).toMatchObject({ toolCallName: "addTodo" });
+    const result = events.find((e) => e.type === EventType.TOOL_CALL_RESULT);
+    expect(JSON.parse(result?.content ?? "null")).toMatchObject({
+      title: "buy milk",
+      done: false,
+    });
+    expect(textOf(events)).toBe(COMMENT);
+
+    expect(await service.listTodos(owner.id)).toMatchObject([
+      { title: "buy milk" },
+    ]);
+    expect(await service.listTodos(stranger.id)).toEqual([]);
+  });
+
+  test("a connect after a restart replays the tool call and its result", async () => {
+    ɵGLOBAL_STORE.clear();
+    const response = await connect(owner);
+    const messages = snapshotOf(await eventsOf(response)) ?? [];
+    expect(messages.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "tool",
+      "assistant",
+    ]);
+    const [, call, result, comment] = messages;
+    expect(call).toMatchObject({
+      toolCalls: [
+        {
+          type: "function",
+          function: {
+            name: "addTodo",
+            arguments: JSON.stringify({ title: "buy milk" }),
+          },
+        },
+      ],
+    });
+    const toolCallId =
+      call?.role === "assistant" ? call.toolCalls?.[0]?.id : undefined;
+    expect(result).toMatchObject({ role: "tool", toolCallId });
+    expect(JSON.parse(String(result?.content))).toMatchObject({
+      title: "buy milk",
+    });
+    expect(comment?.content).toBe(COMMENT);
+    replayed = messages;
+  });
+
+  test("a run after the replay stores only the new turn and calls no tool again", async () => {
+    const before = await storedMessages(owner);
+    const input = runInput(owner.thread);
+    const response = await call("POST", "/agent/lissie/run", owner, {
+      ...input,
+      messages: [...replayed, ...input.messages],
+    });
+    expect(textOf(await eventsOf(response))).toBe(REPLY);
+
+    const after = await storedMessages(owner);
+    expect(after.map((m) => [m.id, m.role])).toEqual([
+      ...before.map((m) => [m.id, m.role]),
+      [expect.any(String), "user"],
+      [expect.any(String), "assistant"],
+    ]);
+    expect(after.slice(0, before.length).map((m) => m.content.parts)).toEqual(
+      before.map((m) => m.content.parts),
+    );
+    expect(await service.listTodos(owner.id)).toHaveLength(1);
   });
 });

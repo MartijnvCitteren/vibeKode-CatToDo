@@ -77,7 +77,7 @@ Index:
 - [database.md](tech-docs/database.md) — Drizzle on SQLite: the single db module, migrations, env loading and test databases.
 - [auth.md](tech-docs/auth.md) — Better Auth: the one session helper, plugins, schema generation, env and tests.
 - [cli.md](tech-docs/cli.md) — the `todo-cat` CLI: commands, JSON output and exit codes, device login, token storage and its end-to-end test.
-- [agent.md](tech-docs/agent.md) — Lissie: the Mastra agent, its memory, the CopilotKit runtime, which routes it serves to whom, and its tests.
+- [agent.md](tech-docs/agent.md) — Lissie: the Mastra agent, her tools and how they get the user, memory and history replay, the chat and sidebar, the CopilotKit runtime and its routes, and tests.
 
 ## Keeping this map current
 

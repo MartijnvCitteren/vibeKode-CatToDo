@@ -18,6 +18,7 @@ import {
   lissieThreadId,
   mastra,
 } from "@/lib/lissie";
+import { lissieRequestContext } from "@/lib/lissie-tools";
 import { getUserId } from "@/lib/session";
 
 // The CopilotKit runtime that serves Lissie over AG-UI (see tech-docs/agent.md).
@@ -95,14 +96,19 @@ async function bodyThreadId(request: Request): Promise<string | null> {
 }
 
 const runtime = new CopilotRuntime({
-  // Per request, so Mastra memory is scoped to the session's user and never to a client value.
-  agents: async ({ request }) => ({
-    lissie: MastraAgent.getLocalAgent({
-      mastra,
-      agentId: LISSIE_AGENT_ID,
-      resourceId: await requireUserId(request),
-    }),
-  }),
+  // Per request, so Mastra memory and Lissie's tools work for the session's user, never a client value:
+  // the user id is the memory's resource and the request context her tools read their owner from.
+  agents: async ({ request }) => {
+    const userId = await requireUserId(request);
+    return {
+      lissie: MastraAgent.getLocalAgent({
+        mastra,
+        agentId: LISSIE_AGENT_ID,
+        resourceId: userId,
+        requestContext: lissieRequestContext(userId),
+      }),
+    };
+  },
   runner: new LissieRunner(),
 });
 

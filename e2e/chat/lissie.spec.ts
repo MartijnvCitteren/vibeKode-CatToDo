@@ -13,13 +13,8 @@ async function send(page: Page, text: string) {
   await (await run).finished();
 }
 
-test("Lissie answers and still remembers the conversation after a reload", async ({
-  page,
-}) => {
-  test.setTimeout(120_000);
-  const user = page.getByTestId("copilot-user-message");
-  const lissie = page.getByTestId("copilot-assistant-message");
-
+// Signs up a fresh human and waits until the chat has loaded its (empty) thread.
+async function signUp(page: Page) {
   await page.goto("/signup");
   await page.getByLabel("Name").fill("Lissie's human");
   await page.getByLabel("Email").fill(`human-${Date.now()}@example.com`);
@@ -27,17 +22,54 @@ test("Lissie answers and still remembers the conversation after a reload", async
   const connected = page.waitForResponse((r) => isConnect(r.url()));
   await page.getByRole("button", { name: "Sign up" }).click();
   await connected;
+}
+
+test("Lissie answers and still remembers the conversation after a reload", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const user = page.getByTestId("copilot-user-message");
+  const lissie = page.getByTestId("copilot-assistant-message");
+
+  await signUp(page);
 
   await send(page, "Hi Lissie. What can you do for me?");
   await expect(user).toHaveText(["Hi Lissie. What can you do for me?"]);
-  await expect(lissie).toHaveCount(1);
-  const reply = (await lissie.innerText()).trim();
-  expect(reply).not.toBe("");
+  // A tool call splits her turn: the text after it is a message of its own.
+  await expect(lissie).not.toHaveCount(0);
+  const replies = await lissie.allInnerTexts();
+  expect(replies.join("").trim()).not.toBe("");
 
   const reconnected = page.waitForResponse((r) => isConnect(r.url()));
   await page.reload();
   await (await reconnected).finished();
   await expect(user).toHaveText(["Hi Lissie. What can you do for me?"]);
-  await expect(lissie).toHaveCount(1);
-  expect((await lissie.innerText()).trim()).toBe(reply);
+  await expect(lissie).toHaveCount(replies.length);
+  expect(await lissie.allInnerTexts()).toEqual(replies);
+});
+
+test("Lissie adds buy milk, the sidebar shows it, and her tool call survives a reload", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const open = page
+    .getByRole("complementary", { name: "Your list" })
+    .getByRole("region", { name: "Open" });
+  const milk = open.getByRole("listitem").filter({ hasText: /buy milk/i });
+  const added = page
+    .getByTestId("lissie-tool-call")
+    .filter({ hasText: /^Added “buy milk”/i });
+
+  await signUp(page);
+  await expect(open.getByRole("listitem")).toHaveCount(0);
+
+  await send(page, "Please add buy milk to my list.");
+  await expect(milk).toHaveCount(1);
+  await expect(added).toHaveCount(1);
+
+  const reconnected = page.waitForResponse((r) => isConnect(r.url()));
+  await page.reload();
+  await (await reconnected).finished();
+  await expect(milk).toHaveCount(1);
+  await expect(added).toHaveCount(1);
 });
