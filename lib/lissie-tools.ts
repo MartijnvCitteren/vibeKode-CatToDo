@@ -9,6 +9,7 @@ import {
   todoSchema,
 } from "@todo-cat/contract";
 import { z } from "zod";
+import { progressCard } from "./lissie-progress";
 import { LISSIE_TOOLS } from "./lissie-tool-calls";
 import { addTodo, listTodos, TodoError, updateTodo } from "./todo-service";
 
@@ -82,9 +83,32 @@ const setTodoDoneTool = createTool({
     orError(() => updateTodo(userIdOf(context), id, { done })),
 });
 
+// The card is A2UI the chat renders (lib/lissie-progress.ts); the counts come from the service,
+// so the model never produces a number on it, and no second model call designs it.
+const showProgressTool = createTool({
+  id: LISSIE_TOOLS.showProgress,
+  description:
+    "Shows the user a card in the chat with their progress on the list: how many todos there are, how many are done and how many are open. The card shows the numbers, so don't repeat them all.",
+  inputSchema: z.strictObject({}),
+  outputSchema: z.object({
+    a2ui_operations: z.array(z.record(z.string(), z.unknown())),
+  }),
+  requestContextSchema,
+  execute: async (_input, context) => {
+    const todos = await listTodos(userIdOf(context));
+    const done = todos.filter((todo) => todo.done).length;
+    return progressCard({
+      total: todos.length,
+      done,
+      open: todos.length - done,
+    });
+  },
+});
+
 /** Keyed by the names the model sees, which the chat renders by (lib/lissie-tool-calls.ts). */
 export const lissieTools = {
   [LISSIE_TOOLS.listTodos]: listTodosTool,
   [LISSIE_TOOLS.addTodo]: addTodoTool,
   [LISSIE_TOOLS.setTodoDone]: setTodoDoneTool,
+  [LISSIE_TOOLS.showProgress]: showProgressTool,
 };

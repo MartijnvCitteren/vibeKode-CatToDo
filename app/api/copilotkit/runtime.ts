@@ -101,15 +101,21 @@ const runtime = new CopilotRuntime({
   agents: async ({ request }) => {
     const userId = await requireUserId(request);
     return {
-      lissie: MastraAgent.getLocalAgent({
-        mastra,
+      // What MastraAgent.getLocalAgent builds, plus the a2ui option it doesn't pass on.
+      lissie: new MastraAgent({
         agentId: LISSIE_AGENT_ID,
+        agent: mastra.getAgent(LISSIE_AGENT_ID),
         resourceId: userId,
         requestContext: lissieRequestContext(userId),
+        // Her cards come from her own tools: no generate_a2ui, even if a client forwards injectA2UITool.
+        a2ui: { injectA2UITool: false },
       }),
     };
   },
   runner: new LissieRunner(),
+  // Renders the A2UI operations her tools return (lib/lissie-progress.ts) as cards in the chat.
+  // No surface is generated: no render tool is injected, and none is recognized in the stream.
+  a2ui: { injectA2UITool: false, a2uiToolNames: [] },
 });
 
 export const handler = createCopilotRuntimeHandler({

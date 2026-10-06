@@ -15,13 +15,15 @@ Lissie is the app's one AI agent: a Mastra agent served to the CopilotKit chat o
 ## Pieces
 
 - `lib/lissie.ts` holds the agent, its system prompt, the `Mastra` instance, the thread id rules and the history reader.
-- `lib/lissie-tools.ts` holds her tools, `listTodos`, `addTodo` and `setTodoDone`: the agent adapter on the todo service (see [architecture.md](architecture.md)).
+- `lib/lissie-tools.ts` holds her tools, `listTodos`, `addTodo`, `setTodoDone` and `showProgress`: the agent adapter on the todo service (see [architecture.md](architecture.md)).
+- `lib/lissie-progress.ts` holds the progress card's A2UI component tree and the operations `showProgress` returns.
+- `lib/lissie-catalog.ts` defines the custom A2UI components and the catalog id; `app/lissie-catalog.tsx` adds their renderers to the basic catalog.
 - `lib/lissie-tool-calls.ts` holds the tool names and the one line the chat shows per call; it has no server code, so the browser imports it.
 - `app/api/copilotkit/runtime.ts` builds the CopilotKit runtime, its auth hooks and `LissieRunner`; the catch-all route only re-exports the handler.
 - `app/lissie-chat.tsx` is the client chat (`CopilotKitProvider` + `CopilotChat` from `@copilotkit/react-core/v2`); `app/page.tsx` passes it the agent id and the user's current thread id.
 - `app/lissie-actions.ts` holds the server action behind the chat's "New conversation" button.
 - `app/todo-sidebar.tsx` is the read-only list next to the chat; Lissie is the browser's only way to change the list.
-- Versions are pinned exactly (Mastra, `@ag-ui/*`, CopilotKit), because these packages move fast and must agree on the AG-UI event shapes.
+- Versions are pinned exactly (Mastra, `@ag-ui/*`, CopilotKit, and the A2UI packages at the versions CopilotKit uses), because these packages move fast and must agree on the AG-UI event shapes.
 
 ## Model
 
@@ -49,6 +51,15 @@ Lissie is the app's one AI agent: a Mastra agent served to the CopilotKit chat o
 - The system prompt is a function, so it carries today's date for due dates like "tomorrow".
 - Her persona comments on every todo she adds or marks done; anything about feeding the cat is personal.
 
+## Cards (A2UI)
+
+- A tool that shows a card returns A2UI v0.9 operations in an `{ a2ui_operations }` container; the runtime's A2UI middleware turns that tool result into an `a2ui-surface` activity message, which the chat renders with `lissieCatalog`.
+- Fixed schema only: the card's component tree is written once, next to its tool, and holds no data; components bind to the surface's data model by path, and the tool sends the values in `updateDataModel`.
+- `showProgress` counts total, done and open with the todo service, so the model never produces a number on the card, and no second model call designs it.
+- Nothing generates surfaces: the runtime sets `injectA2UITool: false` and `a2uiToolNames: []`, the bridge gets `a2ui: { injectA2UITool: false }` because it would otherwise inject `generate_a2ui` when a client forwards `injectA2UITool`, and the provider sets `includeSchema: false` so no schema or guidelines reach the agent.
+- The catalog id in `createSurface` must be `LISSIE_CATALOG_ID`, the id the chat registers its catalog under.
+- Custom components are styled like `components/ui/` (ProgressBar is one); the basic catalog's Card, Column and Text keep CopilotKit's theme.
+
 ## Chat and sidebar
 
 - `useRenderTool` renders each tool call as one line (`data-testid="lissie-tool-call"`) from its arguments and its result, which arrives as a JSON string; the same renderer serves live runs and replayed history.
@@ -71,6 +82,7 @@ Lissie is the app's one AI agent: a Mastra agent served to the CopilotKit chat o
 - A live run streams through an in-process `InMemoryAgentRunner`; `connect` re-attaches to it while it runs.
 - Between runs, `connect` replays the thread from Mastra memory as `RUN_STARTED`, `MESSAGES_SNAPSHOT`, `RUN_FINISHED`, so history survives a restart without a second store.
 - The replay rebuilds what the live stream showed: the stored assistant message carries all its tool calls, each result follows as a `tool` message, and text after a tool call is a continuation message `<id>-agui-text` (then `-agui-text-2`, …).
+- A result holding A2UI operations is followed by the card the middleware showed live: an `a2ui-surface` activity message with its id, `a2ui-surface-<toolCallId>`.
 - Those continuation ids are the bridge's own, and it treats them as the stored message, so a run after a replay sends Mastra only the new turn; `runtime.test.ts` checks that memory gains no duplicates.
 - Reasoning is not replayed.
 - A failed run (bad key, model down) shows a line under the chat via `CopilotChat`'s `onError`.
@@ -79,7 +91,9 @@ Lissie is the app's one AI agent: a Mastra agent served to the CopilotKit chat o
 
 - `app/api/copilotkit/runtime.test.ts` calls the handler for every route the runtime serves, without a session, with another user's session and with the owner's, against a temp database.
 - It swaps in `MockLanguageModelV3` from `ai/test` through Mastra's internal `__updateModel`, so it never calls OpenRouter; the mock calls `addTodo` for "Add <title>", which proves the session's user reaches the tool.
-- `lib/lissie-tools.test.ts` runs the tool executors on a temp database with two users; `lib/lissie-tool-calls.test.ts` covers the chat lines.
+- `lib/lissie-tools.test.ts` runs the tool executors on a temp database with two users; for `showProgress` it feeds the operations through A2UI's own `MessageProcessor`, checks every component against its catalog schema, and compares the bound numbers with the rows.
+- `app/lissie-catalog.test.tsx` renders the card through A2UI's React renderer and the chat's catalog; `components/ui/progress-bar.test.tsx` covers the bar; `lib/lissie-tool-calls.test.ts` covers the chat lines.
+- `runtime.test.ts` also checks the live card event, its replay, and that the model is offered no UI-generating tool even when the client asks for one.
 - `npm run test:chat` (`e2e/chat/`, `playwright.chat.config.ts`) chats with the real model: it asks Lissie to add "buy milk", finds it in the sidebar, reloads, and starts a new conversation; it needs `OPENROUTER_API_KEY` in `.env` and stays out of `npm run qa` and CI.
 - `e2e/new-conversation.spec.ts` only checks that the button is disabled on an empty chat, since QA has no model.
 - A tool call splits her turn into several assistant messages in the chat, so tests don't count her messages.
@@ -93,3 +107,7 @@ Lissie is the app's one AI agent: a Mastra agent served to the CopilotKit chat o
 - `useAgent({ agentId, threadId })` is a type error by design: bind to the shared agent with `agentId` alone, and let `CopilotChat` pin the thread.
 - Mastra's `recall` with a `resourceId` throws for a thread that doesn't exist yet, which is why `lissieHistory` looks the thread up first.
 - CopilotKit's runtime logs that its telemetry is on; set `COPILOTKIT_TELEMETRY_DISABLED=true` to opt out.
+- A2UI catalog props are zod 3 schemas from `zod3` (an alias of the exact zod 3 the A2UI packages use): zod 4's `zod/v3` does not type-check against their types, and the binder reads zod 3 internals.
+- A bound prop must be declared as a dynamic union (`DynamicNumberSchema`, …); a plain type passes the `{ path }` object through unresolved.
+- Server code imports the A2UI schemas from `@a2ui/web_core/v0_9`, not `@copilotkit/a2ui-renderer`, whose index pulls in React client code.
+- `MastraAgent.getLocalAgent` drops the `a2ui` option, which is why the runtime constructs `MastraAgent` itself.

@@ -79,7 +79,7 @@ Index:
 - [auth.md](tech-docs/auth.md) — Better Auth: the one session helper, plugins, schema generation, env and tests.
 - [cli.md](tech-docs/cli.md) — the `todo-cat` CLI: commands, JSON output and exit codes, device login, token storage and its end-to-end test.
 - [traffic.md](tech-docs/traffic.md) — watching inbound and outbound HTTP traffic with mitmproxy in Docker, and why it is wired the way it is.
-- [agent.md](tech-docs/agent.md) — Lissie: the Mastra agent, her tools and how they get the user, memory and history replay, the chat and sidebar, the CopilotKit runtime and its routes, and tests.
+- [agent.md](tech-docs/agent.md) — Lissie: the Mastra agent, her tools and how they get the user, her A2UI cards and catalog, memory and history replay, the chat and sidebar, the CopilotKit runtime and its routes, and tests.
 
 ## Keeping this map current
 

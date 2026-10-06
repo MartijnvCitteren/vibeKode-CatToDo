@@ -23,6 +23,7 @@ import {
   setTodoDoneLine,
 } from "@/lib/lissie-tool-calls";
 import { startNewConversation } from "./lissie-actions";
+import { lissieCatalog } from "./lissie-catalog";
 
 type ChatProps = { agentId: string; threadId: string };
 
@@ -35,6 +36,9 @@ export function LissieChat(props: ChatProps) {
       // The runtime is multi-route (app/api/copilotkit/[[...slug]]), so skip the transport probe.
       useSingleEndpoint={false}
       showIntelligenceIndicator={false}
+      // Renders the A2UI cards Lissie's tools return. Her tools hold the trees, so the agent gets
+      // no component schema or generation guidelines to design surfaces with.
+      a2ui={{ catalog: lissieCatalog, includeSchema: false }}
     >
       <Chat {...props} />
     </CopilotKitProvider>

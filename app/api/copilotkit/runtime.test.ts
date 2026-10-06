@@ -17,6 +17,7 @@ let handler: typeof import("./runtime").handler;
 
 const REPLY = "Mrrp. Fine, I'll look at your list.";
 const COMMENT = "Added. Don't expect gratitude.";
+const PROGRESS = "Show my progress";
 
 const usage = {
   inputTokens: {
@@ -41,13 +42,13 @@ function textTurn(text: string) {
   ];
 }
 
-function addTodoTurn(title: string) {
+function toolTurn(toolName: string, input: unknown) {
   return [
     {
       type: "tool-call",
       toolCallId: `call-${crypto.randomUUID()}`,
-      toolName: "addTodo",
-      input: JSON.stringify({ title }),
+      toolName,
+      input: JSON.stringify(input),
     } as const,
     {
       type: "finish",
@@ -58,7 +59,8 @@ function addTodoTurn(title: string) {
 }
 
 // Stands in for OpenRouter, and the calls are counted. "Add <title>" makes Lissie call addTodo,
-// and once the tool has answered she comments with COMMENT; anything else gets REPLY.
+// "Show my progress" showProgress, and once the tool has answered she comments with COMMENT;
+// anything else gets REPLY.
 const model = new MockLanguageModelV3({
   doStream: async ({ prompt }) => {
     const last = prompt.at(-1);
@@ -71,8 +73,10 @@ const model = new MockLanguageModelV3({
       last?.role === "tool"
         ? textTurn(COMMENT)
         : title
-          ? addTodoTurn(title)
-          : textTurn(REPLY);
+          ? toolTurn("addTodo", { title })
+          : text.join("") === PROGRESS
+            ? toolTurn("showProgress", {})
+            : textTurn(REPLY);
     return {
       stream: simulateReadableStream({
         chunks: [{ type: "stream-start", warnings: [] } as const, ...turn],
@@ -169,7 +173,10 @@ type Event = BaseEvent & {
   delta?: string;
   messages?: Message[];
   toolCallName?: string;
-  content?: string;
+  toolCallId?: string;
+  messageId?: string;
+  activityType?: string;
+  content?: unknown;
 };
 
 /** The AG-UI events of a server-sent event stream. */
@@ -468,7 +475,7 @@ describe("Lissie's tools", () => {
       events.find((e) => e.type === EventType.TOOL_CALL_START),
     ).toMatchObject({ toolCallName: "addTodo" });
     const result = events.find((e) => e.type === EventType.TOOL_CALL_RESULT);
-    expect(JSON.parse(result?.content ?? "null")).toMatchObject({
+    expect(JSON.parse(String(result?.content))).toMatchObject({
       title: "buy milk",
       done: false,
     });
@@ -531,5 +538,109 @@ describe("Lissie's tools", () => {
       before.map((m) => m.content.parts),
     );
     expect(await service.listTodos(owner.id)).toHaveLength(1);
+  });
+});
+
+describe("Lissie's progress card", () => {
+  let owner: User;
+  let toolCallId: string | undefined;
+  let replayed: Message[];
+
+  beforeAll(async () => {
+    owner = await signUp();
+    const milk = await service.addTodo(owner.id, { title: "Buy milk" });
+    await service.addTodo(owner.id, { title: "Buy tuna" });
+    await service.updateTodo(owner.id, milk.id, { done: true });
+  });
+
+  const operationsOf = (content: unknown) =>
+    (content as { a2ui_operations?: { updateDataModel?: unknown }[] })
+      ?.a2ui_operations;
+
+  test("a run turns showProgress's result into an A2UI card for the chat", async () => {
+    const response = await call(
+      "POST",
+      "/agent/lissie/run",
+      owner,
+      runInput(owner.thread, PROGRESS),
+    );
+    expect(response.status).toBe(200);
+    const events = await eventsOf(response);
+    const result = events.find((e) => e.type === EventType.TOOL_CALL_RESULT);
+    toolCallId = result?.toolCallId;
+    const card = events.find((e) => e.type === EventType.ACTIVITY_SNAPSHOT);
+    expect(card).toMatchObject({
+      messageId: `a2ui-surface-${toolCallId}`,
+      activityType: "a2ui-surface",
+    });
+    expect(operationsOf(card?.content)).toEqual(
+      operationsOf(JSON.parse(String(result?.content))),
+    );
+    expect(
+      operationsOf(card?.content)?.find((op) => op.updateDataModel),
+    ).toMatchObject({
+      updateDataModel: { value: { total: 2, done: 1, open: 1 } },
+    });
+    expect(textOf(events)).toBe(COMMENT);
+  });
+
+  test("a connect after a restart replays the card where the run showed it", async () => {
+    ɵGLOBAL_STORE.clear();
+    const messages = snapshotOf(await eventsOf(await connect(owner))) ?? [];
+    expect(messages.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "tool",
+      "activity",
+      "assistant",
+    ]);
+    expect(messages[3]).toMatchObject({
+      id: `a2ui-surface-${toolCallId}`,
+      activityType: "a2ui-surface",
+      content: {
+        a2ui_operations: expect.arrayContaining([
+          expect.objectContaining({
+            updateDataModel: expect.objectContaining({
+              value: { total: 2, done: 1, open: 1 },
+            }),
+          }),
+        ]),
+      },
+    });
+    replayed = messages;
+  });
+
+  test("a run after the replay stores only the new turn", async () => {
+    const before = await storedMessages(owner);
+    const input = runInput(owner.thread);
+    const response = await call("POST", "/agent/lissie/run", owner, {
+      ...input,
+      messages: [...replayed, ...input.messages],
+    });
+    expect(textOf(await eventsOf(response))).toBe(REPLY);
+    const after = await storedMessages(owner);
+    expect(after.map((m) => m.role)).toEqual([
+      ...before.map((m) => m.role),
+      "user",
+      "assistant",
+    ]);
+  });
+
+  test("the model is never offered a tool that generates UI, even when the client asks", async () => {
+    const calls = model.doStreamCalls.length;
+    const input = runInput(owner.thread);
+    const response = await call("POST", "/agent/lissie/run", owner, {
+      ...input,
+      forwardedProps: { a2uiCatalogAvailable: true, injectA2UITool: true },
+    });
+    expect(response.status).toBe(200);
+    await response.text();
+    const offered = model.doStreamCalls
+      .slice(calls)
+      .flatMap((c) => c.tools ?? [])
+      .map((tool) => tool.name);
+    expect(new Set(offered)).toEqual(
+      new Set(["listTodos", "addTodo", "setTodoDone", "showProgress"]),
+    );
   });
 });

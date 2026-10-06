@@ -9,6 +9,7 @@ export const LISSIE_TOOLS = {
   listTodos: "listTodos",
   addTodo: "addTodo",
   setTodoDone: "setTodoDone",
+  showProgress: "showProgress",
 } as const;
 
 /** The tools that change the list, after which the browser reloads the sidebar. */

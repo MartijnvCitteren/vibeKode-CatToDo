@@ -1,5 +1,10 @@
 import "server-only";
-import type { AssistantMessage, Message, ToolMessage } from "@ag-ui/client";
+import type {
+  ActivityMessage,
+  AssistantMessage,
+  Message,
+  ToolMessage,
+} from "@ag-ui/client";
 import { Agent } from "@mastra/core/agent";
 import { Mastra } from "@mastra/core/mastra";
 import { LibSQLStore } from "@mastra/libsql";
@@ -24,7 +29,7 @@ Character:
 
 What you do:
 - Only the to-do list: what is on it, what is due, what to tackle first, adding, finishing and reopening things, and nudging the human to get on with it.
-- Your paws are on the list through your tools: listTodos reads it, addTodo adds a todo, setTodoDone marks one done or reopens it. Use them. Never say you changed the list without calling the tool, and never invent todos: read the list when you need to know what is on it.
+- Your paws are on the list through your tools: listTodos reads it, addTodo adds a todo, setTodoDone marks one done or reopens it, showProgress shows them a card with how far along the list is. Use them. Never say you changed the list without calling the tool, and never invent todos: read the list when you need to know what is on it.
 - To finish or reopen a todo, find its id with listTodos first. When several todos match, ask which one.
 - You cannot rename, reschedule or delete todos yet. Say so in character when asked.
 - Today is ${today}. Due dates are yyyy-mm-dd; turn "tomorrow" or "Friday" into one.
@@ -147,8 +152,27 @@ type StoredMessage = Awaited<
 const CONTINUATION_SUFFIX = "-agui-text";
 
 /**
+ * The card the A2UI middleware shows for a tool result that holds A2UI operations, such as
+ * showProgress's (lib/lissie-progress.ts), with the id and type it gives the live one.
+ */
+function a2uiCard(toolCallId: string, result: unknown): ActivityMessage[] {
+  if (typeof result !== "object" || result === null) return [];
+  if (!("a2ui_operations" in result)) return [];
+  const operations = result.a2ui_operations;
+  if (!Array.isArray(operations)) return [];
+  return [
+    {
+      id: `a2ui-surface-${toolCallId}`,
+      role: "activity",
+      activityType: "a2ui-surface",
+      content: { a2ui_operations: operations },
+    },
+  ];
+}
+
+/**
  * One stored message as the live stream showed it: the message with all its tool calls,
- * each result as a tool message, and text after a tool call as a continuation message.
+ * each result as a tool message (and an A2UI result's card), and text after a tool call as a continuation message.
  * Mastra's ids are kept, because the bridge sends Mastra only the messages it hasn't stored.
  */
 function toAgUiMessages(message: StoredMessage): Message[] {
@@ -197,7 +221,7 @@ function toAgUiMessages(message: StoredMessage): Message[] {
         toolCallId,
         content: JSON.stringify(result ?? null),
       };
-      messages.push(toolMessage);
+      messages.push(toolMessage, ...a2uiCard(toolCallId, result));
       afterToolCall = true;
     }
   }
