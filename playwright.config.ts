@@ -22,6 +22,8 @@ if (!process.env.E2E_DATABASE_URL) {
 
 export default defineConfig({
   testDir: "./e2e",
+  // The chat test calls the real model; it runs only through playwright.chat.config.ts.
+  testIgnore: "chat/**",
   globalTeardown: "./e2e/global-teardown.ts",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

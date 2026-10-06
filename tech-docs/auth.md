@@ -5,7 +5,7 @@
 - Better Auth (`better-auth`, `@better-auth/drizzle-adapter` and the `auth` CLI, all pinned at exactly 1.7.7) with email and password only.
 - `lib/auth.ts` is the server-only Better Auth instance on the Drizzle adapter over `lib/db.ts`; `app/api/auth/[...all]/route.ts` mounts its HTTP endpoints.
 - `getUserId` in `lib/session.ts` is the only code that reads sessions: it maps a request (session cookie or `Authorization: Bearer <token>`) to the user id or null.
-- Pages, Server Actions and every later adapter (REST, agent tools, MCP) call `getUserId` and load what else they need by user id, rather than calling `auth.api.getSession` themselves.
+- Pages, Server Actions and every adapter (REST, the CopilotKit runtime, later agent tools and MCP) call `getUserId` and load what else they need by user id, rather than calling `auth.api.getSession` themselves.
 - Signup, login and sign-out are Server Actions in `app/auth-actions.ts`; the `nextCookies` plugin lets them set and clear the session cookie, so the browser needs no Better Auth client yet.
 - `/` checks the session server-side and redirects to `/login`; `app/(auth)/layout.tsx` sends signed-in users away from `/login` and `/signup`.
 - `/login` and `/signup` take `?next=` and return there after success; `nextPath` in `lib/next-path.ts` accepts only a same-site path, so the link cannot redirect off-site.

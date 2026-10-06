@@ -13,6 +13,7 @@
 - `npm run qa` (`scripts/qa.sh`) runs Biome, typecheck, production build, the CLI build, Vitest and Playwright; it is the done-check for every task and the whole CI job.
 - `npm test` runs Vitest once across the app and both workspaces; `npm run test:watch` keeps it watching.
 - `npm run test:e2e` runs Playwright, which starts its own `next dev` on a free port and stops it afterwards.
+- `npm run test:chat` runs `e2e/chat/` with `playwright.chat.config.ts` (the same isolated server) against the real model; it needs `OPENROUTER_API_KEY` in `.env`, so `playwright.config.ts` ignores `chat/**` and QA and CI never run it.
 - `npx playwright install chromium` downloads the browser; run it once per machine and after upgrading `@playwright/test`.
 - `npx playwright test --ui` or `--debug` opens Playwright's interactive runner.
 
@@ -35,7 +36,7 @@
 
 - `.github/workflows/qa.yml` runs `npm run qa` on every push and pull request with Node 24 and `npm ci`; it does not deploy.
 - Playwright browsers are cached by Playwright version, and `playwright install --with-deps` still runs on a cache hit to install Chromium's system libraries.
-- CI builds `.env` from `.env.example` and fills every empty value with a random dummy, so a new secret belongs in `.env.example` with an empty value and never in GitHub secrets for tests.
+- CI builds `.env` from `.env.example` and fills every empty value with a random dummy, so a new secret belongs in `.env.example` with an empty value and never in GitHub secrets for tests; that is also why `OPENROUTER_API_KEY` is a dummy in CI.
 - On failure the job uploads `.qa/` and `test-results/` as the `qa-results` artifact.
 - With `CI` set, Playwright switches to the `github` reporter, forbids `test.only` and retries failures twice (see `playwright.config.ts`).
 
@@ -44,6 +45,7 @@
 - Vitest test globals are off, so import `test`, `expect` and friends from `vitest`, and Testing Library's auto-cleanup is wired up by hand in `vitest.setup.ts`.
 - The Node project mocks `server-only` in `vitest.setup.node.ts`, so tests can import server modules such as `lib/db.ts`.
 - Tests never use `data/app.db`: Vitest and the Playwright server each migrate their own temp database (see [database.md](database.md)).
+- Tests never call the model: Vitest swaps a mock model into Lissie, and the Playwright QA specs don't chat (see [agent.md](agent.md)).
 - The Playwright server reads `BETTER_AUTH_SECRET` from `.env` and gets `BETTER_AUTH_URL` from `playwright.config.ts` (see [auth.md](auth.md)).
 - Next.js holds a lock on its dev build dir, so a second `next dev` in the same project exits with "Another next dev server is already running"; the Playwright server therefore builds into `E2E_DIST_DIR` via `NEXT_DIST_DIR` (read in `next.config.ts`) and can run beside `npm run dev`.
 - Next.js adds include entries to `tsconfig.json` for every build dir it sees and reformats the file when it does, which fails `biome check`; the `.next/e2e` and `.next/cli-e2e` (the CLI test's server, see [cli.md](cli.md)) entries are committed so that rewrite never happens, so an `E2E_DIST_DIR` elsewhere dirties `tsconfig.json`.

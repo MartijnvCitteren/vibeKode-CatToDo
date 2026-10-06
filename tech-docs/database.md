@@ -6,6 +6,7 @@
 - `lib/db.ts` is the only module that opens the database and exports the Drizzle instance; everything else imports `db` from it.
 - `lib/db.ts` imports `server-only`, so any Client Component that reaches it fails the build instead of shipping database code to the browser.
 - Tables live in `lib/schema.ts`; the auth tables are generated into `lib/auth-schema.ts` and re-exported there (see [auth.md](auth.md)).
+- Mastra's memory tables (`mastra_*`) share the file and the connection (`db.$client`); Mastra creates and migrates them itself, so they are not in `lib/schema.ts` or `drizzle/` (see [agent.md](agent.md)).
 - Migrations are generated SQL files under `drizzle/`, applied by `drizzle-kit migrate`; the schema is never pushed straight to a database.
 - `npm run db:seed` fills the local database with a demo user and todos (see [architecture.md](architecture.md)); it refuses any URL that is not `file:`.
 

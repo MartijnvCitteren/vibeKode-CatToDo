@@ -66,8 +66,9 @@ around it. Hexagonal (ports and adapters), without the ceremony.
 - **REST** (`/api/todos`): for non-browser clients. Bearer token or session cookie,
   401 `unauthorized` without either, 404 `todo-not-found`, 400 `validation-failed`. Endpoints in [rest-api.md](rest-api.md).
 - **CLI** (`cli/`): a client of the REST API, never of the database (see [cli.md](cli.md)).
-- **Agent tools** (later): call the service directly. The user id comes from the
-  server session, never from a tool argument the model fills in.
+- **Agent tools** (later): Lissie's tools (see [agent.md](agent.md)) call the service
+  directly. The user id comes from the server session, never from a tool argument the
+  model fills in.
 - **MCP**: over stdio inside the CLI (a REST client again), over HTTP inside the app
   (calls the service, like the REST routes).
 
